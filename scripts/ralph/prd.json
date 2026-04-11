@@ -177,7 +177,7 @@
         "No JavaScript errors in console"
       ],
       "priority": 10,
-      "passes": false,
+      "passes": true,
       "notes": "totalFocusTime tracks cumulative seconds the tab was focused. On onActivated, record timestamp; on next onActivated, calculate duration and add to previous tab's totalFocusTime. IndexedDB writes must be async and non-blocking."
     },
     {

@@ -28,6 +28,12 @@ Started: Sat Apr 11 23:15:55 CST 2026
 - lib/grouper.js exports groupTabs() as the main public API (AI first, domain fallback)
 - Domain grouping color rotation: blue, green, cyan, orange, purple, pink, red, yellow
 - eTLD+1 extraction: handle multi-part TLDs (co.uk, com.au) via KNOWN_SLDS set
+- IndexedDB database name: 'TabBrainDB', object store: 'entries', keyPath: 'url'
+- IndexedDB indexes: domain, lastSeen, archived (url is keyPath so implicitly unique)
+- lib/knowledge.js exports: saveEntry, getEntry, updateEntry, getAllEntries, searchEntries, pruneOldEntries
+- lib/tracker.js exports initTracker() — call in onInstalled and onStartup to register tab listeners
+- Tab focus tracking: store { tabId, timestamp } in currentFocus, compute duration on next onActivated
+- Auto-prune: 90 days max age, runs on initTracker()
 - sidepanel.js is NOT an ES module — loaded via <script src> tag, no type=module
 - chrome.runtime.sendMessage returns a Promise in MV3, can be awaited directly
 - Side panel status messages use CSS class toggling: loading/success/error
@@ -167,4 +173,19 @@ Started: Sat Apr 11 23:15:55 CST 2026
   - For expand/collapse animation, use max-height + overflow:hidden + CSS transition (not display:none which can't animate)
   - DOM creation via createElement + textContent is safer than innerHTML for user-provided content (tab titles)
   - Unicode chevrons: \u25B6 (right-pointing = collapsed), \u25BC (down-pointing = expanded)
+---
+
+## 2026-04-11 - US-010
+- Implemented IndexedDB-backed knowledge base in lib/knowledge.js
+- Created tab activity tracker in lib/tracker.js with focus time tracking
+- Updated service-worker.js to import and initialize tracker on install/activate and startup
+- Files changed: lib/knowledge.js, lib/tracker.js, service-worker.js
+- **Learnings for future iterations:**
+  - IndexedDB openDB() must be called per operation (connections should be closed after use to avoid blocking upgrades)
+  - IDBKeyRange.upperBound(cutoff) on lastSeen index efficiently selects entries to prune
+  - chrome.tabs.onActivated fires with {tabId, windowId}; use chrome.tabs.get(tabId) to fetch full tab info
+  - chrome.runtime.onStartup is needed in addition to onInstalled to re-initialize tracker after service worker restarts
+  - Focus time tracking: store currentFocus = {tabId, timestamp}, compute duration on next activation, add to totalFocusTime
+  - Empty catch blocks (catch {}) are valid in plain JS for ignoring expected errors (e.g., tab closed during lookup)
+  - IndexedDB transactions: use 'readwrite' for put/delete, 'readonly' for get/getAll
 ---
