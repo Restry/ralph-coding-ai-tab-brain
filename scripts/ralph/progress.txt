@@ -9,6 +9,8 @@ Started: Sat Apr 11 23:15:55 CST 2026
 - Permissions: tabs, tabGroups, sidePanel, storage, activeTab
 - Quality checks: `node --check <file>` for syntax, `node -e "JSON.parse(...)"` for manifest
 - Chrome Tab Group valid colors: grey, blue, red, yellow, green, pink, purple, cyan, orange
+- chrome.storage.sync keys: apiKey, apiEndpoint, model (set by options page)
+- Default API endpoint: https://api.anthropic.com, default model: claude-sonnet-4-20250514
 
 ## 2026-04-11 23:17 - US-001
 - Created project scaffold with Manifest V3
@@ -17,4 +19,18 @@ Started: Sat Apr 11 23:15:55 CST 2026
   - Manifest V3 uses `"type": "module"` in background.service_worker config for ES module support
   - side_panel config uses `default_path` key
   - options_page is a top-level string key (not nested object)
+---
+
+## 2026-04-11 23:30 - US-002
+- Implemented options page with API key, endpoint URL, and model configuration
+- Files changed: options.html, options.js, options.css
+- Form saves/loads settings to/from chrome.storage.sync
+- Validation: API key required, endpoint must be valid URL
+- Success/error feedback with auto-dismiss after 3s
+- Dark theme styling consistent with extension aesthetic
+- **Learnings for future iterations:**
+  - Storage keys used: `apiKey`, `apiEndpoint`, `model` in chrome.storage.sync
+  - Default endpoint: `https://api.anthropic.com`, default model: `claude-sonnet-4-20250514`
+  - Trailing slashes stripped from endpoint URL before saving
+  - options.js is NOT an ES module (loaded via script tag, not type=module) - uses chrome.* APIs directly from DOM context
 ---

@@ -34,7 +34,7 @@
         "No JavaScript errors in console"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "This is the first-run setup. Without an API key, grouping falls back to offline domain-based mode."
     },
     {
