@@ -4,6 +4,9 @@ const groupNowBtn = document.getElementById('groupNowBtn');
 const statusEl = document.getElementById('status');
 const tabCountEl = document.getElementById('tabCount');
 const groupsListEl = document.getElementById('groupsList');
+const staleListEl = document.getElementById('staleList');
+const staleCountEl = document.getElementById('staleCount');
+const archiveAllBtn = document.getElementById('archiveAllBtn');
 
 /** Map Chrome tab group color names to CSS colors. */
 const GROUP_COLORS = {
@@ -69,6 +72,7 @@ async function handleGroupNow() {
 
     await refreshTabCount();
     await refreshGroups();
+    await refreshStaleTabs();
   } catch (err) {
     showStatus(`Error: ${err.message}`, 'error');
   } finally {
@@ -190,7 +194,105 @@ async function activateTab(tabId, windowId) {
 
 // Event listeners
 groupNowBtn.addEventListener('click', handleGroupNow);
+archiveAllBtn.addEventListener('click', handleArchiveAll);
+
+/** Fetch and render stale tabs. */
+async function refreshStaleTabs() {
+  try {
+    const result = await chrome.runtime.sendMessage({ action: 'getStaleTabs' });
+    if (result && result.error) {
+      staleListEl.innerHTML = '<p class="empty-state">Unable to load stale tabs.</p>';
+      return;
+    }
+
+    const staleTabs = (result && result.staleTabs) || [];
+    staleListEl.innerHTML = '';
+
+    if (staleTabs.length === 0) {
+      staleCountEl.textContent = '';
+      archiveAllBtn.style.display = 'none';
+      staleListEl.innerHTML = '<p class="empty-state">No stale tabs found. All tabs are active!</p>';
+      return;
+    }
+
+    staleCountEl.textContent = staleTabs.length;
+    archiveAllBtn.style.display = '';
+
+    for (const tab of staleTabs) {
+      staleListEl.appendChild(renderStaleTab(tab));
+    }
+  } catch (err) {
+    console.warn('Failed to refresh stale tabs:', err.message);
+    staleListEl.innerHTML = '<p class="empty-state">Unable to load stale tabs.</p>';
+  }
+}
+
+/** Render a single stale tab item. */
+function renderStaleTab(tab) {
+  const itemEl = document.createElement('div');
+  itemEl.className = 'stale-item';
+
+  const infoEl = document.createElement('div');
+  infoEl.className = 'stale-info';
+
+  const titleEl = document.createElement('div');
+  titleEl.className = 'stale-title';
+  titleEl.textContent = tab.title;
+  titleEl.title = tab.url;
+
+  const metaEl = document.createElement('div');
+  metaEl.className = 'stale-meta';
+  metaEl.textContent = `${tab.domain} \u00B7 ${tab.daysSinceLastFocused} day${tab.daysSinceLastFocused !== 1 ? 's' : ''} ago`;
+
+  infoEl.appendChild(titleEl);
+  infoEl.appendChild(metaEl);
+
+  const archiveBtn = document.createElement('button');
+  archiveBtn.className = 'btn-archive';
+  archiveBtn.textContent = 'Archive & Close';
+  archiveBtn.addEventListener('click', async () => {
+    archiveBtn.disabled = true;
+    archiveBtn.textContent = 'Closing...';
+    try {
+      await chrome.runtime.sendMessage({
+        action: 'archiveTab',
+        tabId: tab.tabId,
+        url: tab.url,
+        title: tab.title,
+        domain: tab.domain,
+        favIconUrl: tab.favIconUrl
+      });
+      await refreshStaleTabs();
+      await refreshTabCount();
+    } catch (err) {
+      console.warn('Failed to archive tab:', err.message);
+      archiveBtn.disabled = false;
+      archiveBtn.textContent = 'Archive & Close';
+    }
+  });
+
+  itemEl.appendChild(infoEl);
+  itemEl.appendChild(archiveBtn);
+  return itemEl;
+}
+
+/** Handle Archive & Close All button click. */
+async function handleArchiveAll() {
+  archiveAllBtn.disabled = true;
+  archiveAllBtn.textContent = 'Closing...';
+  try {
+    await chrome.runtime.sendMessage({ action: 'archiveAllStaleTabs' });
+    await refreshStaleTabs();
+    await refreshTabCount();
+  } catch (err) {
+    console.warn('Failed to archive all stale tabs:', err.message);
+  } finally {
+    archiveAllBtn.disabled = false;
+    archiveAllBtn.textContent = 'Archive & Close All';
+  }
+}
 
 // Initialize on load
 refreshTabCount();
 refreshGroups();
+refreshStaleTabs();
