@@ -28,6 +28,10 @@ Started: Sat Apr 11 23:15:55 CST 2026
 - lib/grouper.js exports groupTabs() as the main public API (AI first, domain fallback)
 - Domain grouping color rotation: blue, green, cyan, orange, purple, pink, red, yellow
 - eTLD+1 extraction: handle multi-part TLDs (co.uk, com.au) via KNOWN_SLDS set
+- sidepanel.js is NOT an ES module — loaded via <script src> tag, no type=module
+- chrome.runtime.sendMessage returns a Promise in MV3, can be awaited directly
+- Side panel status messages use CSS class toggling: loading/success/error
+- Side panel communicates with service worker via { action: 'actionName' } message shape
 
 ## 2026-04-11 23:17 - US-001
 - Created project scaffold with Manifest V3
@@ -125,4 +129,21 @@ Started: Sat Apr 11 23:15:55 CST 2026
   - chrome.tabGroups.query({}) returns all existing tab groups across all windows
   - Error responses use { error: string } shape — side panel should check for this field
   - The `sender` parameter in onMessage is positional; needed even if unused to access sendResponse
+---
+
+## 2026-04-11 - US-008
+- Implemented side panel layout with Group Now button
+- Files changed: sidepanel.html, sidepanel.js, sidepanel.css
+- Header shows "Tab Brain" title with live tab count badge (fetched via getTabStats message)
+- Prominent "Group Now" button sends 'groupNow' message to service worker
+- Loading state: button disabled + text changes to "Grouping...", status shows "Analyzing tabs..."
+- Success: shows group count, tab count, and group names
+- Error: shows error message with fallback suggestion
+- Dark theme CSS with custom properties, responsive for 280-420px side panel width
+- **Learnings for future iterations:**
+  - sidepanel.js is NOT an ES module (loaded via `<script src>` in HTML, no type=module) — uses chrome.* APIs directly from DOM context
+  - Status messages use CSS class toggling (loading/success/error) for different visual states
+  - chrome.runtime.sendMessage returns a Promise in MV3 — can be awaited directly
+  - Tab count badge refreshes after grouping completes to reflect new state
+  - Side panel pattern: get DOM elements at top level, define helper functions, attach listeners, call init at bottom
 ---

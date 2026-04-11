@@ -141,7 +141,7 @@
         "No JavaScript errors in console"
       ],
       "priority": 8,
-      "passes": false,
+      "passes": true,
       "notes": "Side panel is typically 300-400px wide. Design for this constraint. Use CSS custom properties for theming."
     },
     {
