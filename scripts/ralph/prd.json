@@ -17,7 +17,7 @@
         "No JavaScript errors in service worker console"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "Plain JavaScript, no TypeScript, no build tools. Keep it simple. Project files go in the repo root (manifest.json at root level)."
     },
     {
