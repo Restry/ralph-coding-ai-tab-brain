@@ -69,7 +69,7 @@
         "No JavaScript errors in console"
       ],
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "notes": "The 0-based index is a position index assigned by us (not chrome tab ID). This is what gets sent to the AI. We map back to tabId after AI response."
     },
     {
