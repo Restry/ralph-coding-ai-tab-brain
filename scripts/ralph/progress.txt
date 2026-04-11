@@ -11,6 +11,9 @@ Started: Sat Apr 11 23:15:55 CST 2026
 - Chrome Tab Group valid colors: grey, blue, red, yellow, green, pink, purple, cyan, orange
 - chrome.storage.sync keys: apiKey, apiEndpoint, model (set by options page)
 - Default API endpoint: https://api.anthropic.com, default model: claude-sonnet-4-20250514
+- lib/ai.js exports sendMessage(systemPrompt, userMessage) → returns response text string
+- AI client uses anthropic-version: 2023-06-01, max_tokens: 1024
+- AI client has 10s timeout via AbortController
 
 ## 2026-04-11 23:17 - US-001
 - Created project scaffold with Manifest V3
@@ -33,4 +36,19 @@ Started: Sat Apr 11 23:15:55 CST 2026
   - Default endpoint: `https://api.anthropic.com`, default model: `claude-sonnet-4-20250514`
   - Trailing slashes stripped from endpoint URL before saving
   - options.js is NOT an ES module (loaded via script tag, not type=module) - uses chrome.* APIs directly from DOM context
+---
+
+## 2026-04-11 23:45 - US-003
+- Implemented AI client module in lib/ai.js
+- Files changed: lib/ai.js
+- Exports sendMessage(systemPrompt, userMessage) function
+- Reads API key, endpoint, model from chrome.storage.sync
+- POST to {endpoint}/v1/messages with x-api-key, anthropic-version, content-type headers
+- 10s timeout via AbortController with descriptive error
+- Descriptive errors for: missing API key, non-OK response (includes status + body), timeout, unexpected response format
+- **Learnings for future iterations:**
+  - lib/ai.js is an ES module (uses export), importable by service-worker.js via static import
+  - Claude Messages API format: system as top-level string param, messages as array of {role, content}
+  - AbortController: setTimeout to call controller.abort(), catch err.name === 'AbortError'
+  - Always clearTimeout in both success and error paths to avoid leaks
 ---

@@ -52,7 +52,7 @@
         "No JavaScript errors in console"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "Use fetch API. The endpoint default is https://api.anthropic.com. Model default is claude-sonnet-4-20250514. anthropic-version header should be 2023-06-01."
     },
     {
