@@ -146,4 +146,25 @@ Started: Sat Apr 11 23:15:55 CST 2026
   - chrome.runtime.sendMessage returns a Promise in MV3 — can be awaited directly
   - Tab count badge refreshes after grouping completes to reflect new state
   - Side panel pattern: get DOM elements at top level, define helper functions, attach listeners, call init at bottom
+- Side panel can call chrome.tabs and chrome.tabGroups APIs directly (no need for message passing to service worker for read-only queries)
+- Chrome tab groupId === -1 means the tab is ungrouped
+- GROUP_COLORS map in sidepanel.js converts Chrome color names to CSS hex values
+- Expandable/collapsible UI: use max-height + overflow:hidden + CSS transition for smooth animation
+---
+
+## 2026-04-11 - US-009
+- Implemented "Current Groups" section in side panel showing all Chrome Tab Groups
+- Each group shows: color dot indicator, group name, tab count, expand/collapse chevron
+- Groups are expandable to show individual tab titles; clicking a tab activates it and focuses its window
+- Ungrouped (non-pinned) tabs shown under an 'Ungrouped' section with grey color
+- Group list refreshes after 'Group Now' completes and on initial load
+- Empty state message when no groups exist
+- Files changed: sidepanel.html, sidepanel.js, sidepanel.css
+- **Learnings for future iterations:**
+  - Side panel has direct access to chrome.tabs and chrome.tabGroups APIs — no need for message passing to service worker for read-only operations
+  - chrome.tabGroups.query({}) returns all groups; filter allTabs by groupId to get tabs per group
+  - Ungrouped tabs have groupId === -1; pinned tabs should be excluded from the "Ungrouped" section
+  - For expand/collapse animation, use max-height + overflow:hidden + CSS transition (not display:none which can't animate)
+  - DOM creation via createElement + textContent is safer than innerHTML for user-provided content (tab titles)
+  - Unicode chevrons: \u25B6 (right-pointing = collapsed), \u25BC (down-pointing = expanded)
 ---

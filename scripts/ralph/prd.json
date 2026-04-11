@@ -158,7 +158,7 @@
         "No JavaScript errors in console"
       ],
       "priority": 9,
-      "passes": false,
+      "passes": true,
       "notes": "Use chrome.tabGroups.query() to get groups and chrome.tabs.query({groupId}) to get tabs in each group. Handle the case where user has no groups yet."
     },
     {
