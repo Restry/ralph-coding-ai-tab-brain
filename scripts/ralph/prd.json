@@ -213,7 +213,7 @@
         "No JavaScript errors in console"
       ],
       "priority": 12,
-      "passes": false,
+      "passes": true,
       "notes": "Search implementation: iterate IndexedDB entries and filter by query substring match on title+url+domain. For v1 this is fine up to a few thousand entries. Debounce search input (300ms)."
     }
   ]

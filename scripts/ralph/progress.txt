@@ -208,4 +208,23 @@ Started: Sat Apr 11 23:15:55 CST 2026
   - New URL(url).hostname works for domain extraction even in service worker context
   - Sort stale tabs by daysSinceLastFocused descending so most stale appear first
   - Inline style display:none/'' is simplest for conditional button visibility
+- Service worker handles getKBStats and searchKnowledge message actions for knowledge base UI
+- Debounce search input with setTimeout/clearTimeout pattern (300ms delay)
+- searchEntries in knowledge.js already sorts by lastSeen descending; slice(0, 20) for limit
+---
+
+## 2026-04-11 - US-012
+- Implemented Knowledge Base search UI in side panel
+- Added KB statistics display: tabs tracked today + this week
+- Search input with 300ms debounce, full-text search across title/url/domain
+- Results show: title, domain, last seen date, total focus time, archived badge
+- Clicking result opens URL in new tab; limited to 20 results, most recent first
+- Empty state when no results match
+- Files changed: service-worker.js, sidepanel.html, sidepanel.js, sidepanel.css
+- **Learnings for future iterations:**
+  - Service worker needs to import getAllEntries and searchEntries from knowledge.js for KB stats/search
+  - KB stats computation: iterate all entries, compare lastSeen against start-of-today and start-of-week timestamps
+  - searchEntries() in knowledge.js already handles substring matching and sorting by lastSeen desc
+  - Debounce pattern: store timer ID in module-level variable, clearTimeout before setTimeout
+  - Unicode middle dot (\u00B7) used as separator in meta text (consistent with stale tab meta)
 ---
