@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Tab Brain",
+  "version": "1.0.0",
+  "description": "AI-Powered Chrome Extension for Smart Tab Grouping & Knowledge Capture",
+  "permissions": [
+    "tabs",
+    "tabGroups",
+    "sidePanel",
+    "storage",
+    "activeTab"
+  ],
+  "background": {
+    "service_worker": "service-worker.js",
+    "type": "module"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "options_page": "options.html",
+  "icons": {}
+}
