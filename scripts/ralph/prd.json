@@ -107,7 +107,7 @@
         "No JavaScript errors in console"
       ],
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "notes": "The main groupTabs() function is the public API. It calls groupTabsWithAI() first, catches any error (no API key, timeout, parse failure), then calls groupTabsByDomain() as fallback."
     },
     {

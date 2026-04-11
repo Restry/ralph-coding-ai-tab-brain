@@ -21,6 +21,10 @@ Started: Sat Apr 11 23:15:55 CST 2026
 - chrome.tabs.group({tabIds}) returns a groupId, then chrome.tabGroups.update(groupId, {title, color})
 - After AI call, re-query chrome.tabs.query({}) to catch tabs closed/opened during the request
 - Unassigned non-pinned tabs go to a 'Misc' group (grey color)
+- lib/grouper.js exports groupTabsByDomain(tabs) for offline domain-based grouping
+- lib/grouper.js exports groupTabs() as the main public API (AI first, domain fallback)
+- Domain grouping color rotation: blue, green, cyan, orange, purple, pink, red, yellow
+- eTLD+1 extraction: handle multi-part TLDs (co.uk, com.au) via KNOWN_SLDS set
 
 ## 2026-04-11 23:17 - US-001
 - Created project scaffold with Manifest V3
@@ -90,4 +94,17 @@ Started: Sat Apr 11 23:15:55 CST 2026
   - chrome.tabGroups.update(groupId, {title, color}) sets the visual properties
   - Always validate AI color values against the VALID_COLORS list, default to 'grey'
   - Re-querying tabs after AI call is essential since tabs can close during the 10s timeout
+---
+
+## 2026-04-11 - US-006
+- Implemented offline fallback grouping by domain in lib/grouper.js
+- Added groupTabsByDomain(tabs): groups by eTLD+1, color rotation, single-tab domains go to 'Misc'
+- Added groupTabs(): main public API that tries AI first, falls back to domain on any error
+- Added getETLDPlusOne() helper with multi-part TLD handling (co.uk, com.au, etc.)
+- Files changed: lib/grouper.js
+- **Learnings for future iterations:**
+  - groupTabs() is now the main entry point; callers should use this instead of groupTabsWithAI() directly
+  - Domain grouping uses console.warn (not console.error) for fallback notification
+  - getAllTabs is now imported in grouper.js (needed for groupTabs() to get fresh tab data)
+  - eTLD+1 approximation works for common cases; a full PSL library would be needed for edge cases
 ---
