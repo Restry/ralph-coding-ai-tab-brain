@@ -7,6 +7,9 @@ const groupsListEl = document.getElementById('groupsList');
 const staleListEl = document.getElementById('staleList');
 const staleCountEl = document.getElementById('staleCount');
 const archiveAllBtn = document.getElementById('archiveAllBtn');
+const kbStatsEl = document.getElementById('kbStats');
+const kbSearchInput = document.getElementById('kbSearchInput');
+const kbResultsEl = document.getElementById('kbResults');
 
 /** Map Chrome tab group color names to CSS colors. */
 const GROUP_COLORS = {
@@ -196,6 +199,119 @@ async function activateTab(tabId, windowId) {
 groupNowBtn.addEventListener('click', handleGroupNow);
 archiveAllBtn.addEventListener('click', handleArchiveAll);
 
+/** Debounce timer for search input. */
+let searchDebounceTimer = null;
+
+/** Handle search input with 300ms debounce. */
+kbSearchInput.addEventListener('input', () => {
+  clearTimeout(searchDebounceTimer);
+  searchDebounceTimer = setTimeout(() => {
+    const query = kbSearchInput.value.trim();
+    if (query.length === 0) {
+      kbResultsEl.innerHTML = '';
+      return;
+    }
+    handleSearch(query);
+  }, 300);
+});
+
+/** Search the knowledge base and display results. */
+async function handleSearch(query) {
+  try {
+    const response = await chrome.runtime.sendMessage({ action: 'searchKnowledge', query });
+    if (response && response.error) {
+      kbResultsEl.innerHTML = '<p class="empty-state">Search failed.</p>';
+      return;
+    }
+
+    const results = (response && response.results) || [];
+    kbResultsEl.innerHTML = '';
+
+    if (results.length === 0) {
+      kbResultsEl.innerHTML = '<p class="empty-state">No results found.</p>';
+      return;
+    }
+
+    for (const entry of results) {
+      kbResultsEl.appendChild(renderSearchResult(entry));
+    }
+  } catch (err) {
+    console.warn('Search failed:', err.message);
+    kbResultsEl.innerHTML = '<p class="empty-state">Search failed.</p>';
+  }
+}
+
+/** Format total focus time in seconds to a human-readable string. */
+function formatFocusTime(seconds) {
+  if (!seconds || seconds < 60) return '<1m';
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
+
+/** Format a timestamp to a readable date string. */
+function formatDate(timestamp) {
+  if (!timestamp) return 'Unknown';
+  const d = new Date(timestamp);
+  const now = new Date();
+  const diffMs = now - d;
+  const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays} days ago`;
+  return d.toLocaleDateString();
+}
+
+/** Render a single knowledge base search result. */
+function renderSearchResult(entry) {
+  const itemEl = document.createElement('div');
+  itemEl.className = 'kb-result-item';
+  itemEl.title = entry.url;
+  itemEl.addEventListener('click', () => {
+    chrome.tabs.create({ url: entry.url });
+  });
+
+  const titleEl = document.createElement('div');
+  titleEl.className = 'kb-result-title';
+  titleEl.textContent = entry.title || entry.url || 'Untitled';
+
+  const metaEl = document.createElement('div');
+  metaEl.className = 'kb-result-meta';
+
+  let metaText = entry.domain || '';
+  metaText += ` \u00B7 ${formatDate(entry.lastSeen)}`;
+  metaText += ` \u00B7 ${formatFocusTime(entry.totalFocusTime)}`;
+  metaEl.textContent = metaText;
+
+  if (entry.archived) {
+    const badge = document.createElement('span');
+    badge.className = 'kb-archived-badge';
+    badge.textContent = 'Archived';
+    metaEl.appendChild(badge);
+  }
+
+  itemEl.appendChild(titleEl);
+  itemEl.appendChild(metaEl);
+  return itemEl;
+}
+
+/** Fetch and display knowledge base statistics. */
+async function refreshKBStats() {
+  try {
+    const response = await chrome.runtime.sendMessage({ action: 'getKBStats' });
+    if (response && !response.error) {
+      kbStatsEl.textContent = `${response.todayCount} tracked today \u00B7 ${response.weekCount} this week`;
+    } else {
+      kbStatsEl.textContent = '';
+    }
+  } catch (err) {
+    console.warn('Failed to get KB stats:', err.message);
+    kbStatsEl.textContent = '';
+  }
+}
+
 /** Fetch and render stale tabs. */
 async function refreshStaleTabs() {
   try {
@@ -296,3 +412,4 @@ async function handleArchiveAll() {
 refreshTabCount();
 refreshGroups();
 refreshStaleTabs();
+refreshKBStats();

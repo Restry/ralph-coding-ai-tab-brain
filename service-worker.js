@@ -3,7 +3,7 @@
 
 import { groupTabs } from './lib/grouper.js';
 import { initTracker } from './lib/tracker.js';
-import { getEntry, updateEntry, saveEntry } from './lib/knowledge.js';
+import { getEntry, updateEntry, saveEntry, getAllEntries, searchEntries } from './lib/knowledge.js';
 
 // Open side panel when extension icon is clicked
 chrome.runtime.onInstalled.addListener(() => {
@@ -46,6 +46,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       .catch(err => {
         sendResponse({ error: err.message });
       });
+    return true;
+  }
+
+  if (message.action === 'getKBStats') {
+    handleGetKBStats().then(sendResponse).catch(err => {
+      sendResponse({ error: err.message });
+    });
+    return true;
+  }
+
+  if (message.action === 'searchKnowledge') {
+    handleSearchKnowledge(message.query).then(sendResponse).catch(err => {
+      sendResponse({ error: err.message });
+    });
     return true;
   }
 
@@ -152,6 +166,50 @@ async function handleArchiveTab(tabId, url, title, domain, favIconUrl) {
     return { success: true };
   } catch (err) {
     console.warn('archiveTab failed:', err.message);
+    return { error: err.message };
+  }
+}
+
+/**
+ * Handle 'getKBStats' action: return knowledge base statistics.
+ * Counts entries tracked today and this week.
+ */
+async function handleGetKBStats() {
+  try {
+    const entries = await getAllEntries();
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const todayCutoff = startOfToday.getTime();
+
+    const startOfWeek = new Date();
+    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+    startOfWeek.setHours(0, 0, 0, 0);
+    const weekCutoff = startOfWeek.getTime();
+
+    let todayCount = 0;
+    let weekCount = 0;
+    for (const entry of entries) {
+      if (entry.lastSeen && entry.lastSeen >= todayCutoff) todayCount++;
+      if (entry.lastSeen && entry.lastSeen >= weekCutoff) weekCount++;
+    }
+
+    return { todayCount, weekCount, totalCount: entries.length };
+  } catch (err) {
+    console.warn('getKBStats failed:', err.message);
+    return { error: err.message };
+  }
+}
+
+/**
+ * Handle 'searchKnowledge' action: search IndexedDB entries by query.
+ * Returns up to 20 results sorted by most recent first.
+ */
+async function handleSearchKnowledge(query) {
+  try {
+    const results = await searchEntries(query);
+    return { results: results.slice(0, 20) };
+  } catch (err) {
+    console.warn('searchKnowledge failed:', err.message);
     return { error: err.message };
   }
 }
