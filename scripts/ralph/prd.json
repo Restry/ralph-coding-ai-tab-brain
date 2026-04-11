@@ -1,0 +1,220 @@
+{
+  "project": "Tab Brain",
+  "branchName": "ralph/tab-brain-v1",
+  "description": "Tab Brain - AI-Powered Chrome Extension for Smart Tab Grouping & Knowledge Capture",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Project scaffold with Manifest V3",
+      "description": "As a developer, I need the Chrome extension project structure so all subsequent stories have a foundation to build on.",
+      "acceptanceCriteria": [
+        "Create manifest.json with Manifest V3: permissions [tabs, tabGroups, sidePanel, storage, activeTab], service_worker, side_panel, options_page",
+        "Create empty service-worker.js that registers successfully",
+        "Create sidepanel.html with minimal HTML boilerplate, plus empty sidepanel.js and sidepanel.css",
+        "Create options.html with minimal HTML boilerplate, plus empty options.js and options.css",
+        "Create lib/ directory with empty placeholder files: ai.js, grouper.js, tracker.js, knowledge.js",
+        "Extension loads in chrome://extensions developer mode without errors",
+        "No JavaScript errors in service worker console"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "Plain JavaScript, no TypeScript, no build tools. Keep it simple. Project files go in the repo root (manifest.json at root level)."
+    },
+    {
+      "id": "US-002",
+      "title": "Options page for API key configuration",
+      "description": "As a user, I need to configure my Anthropic API key and endpoint so the extension can call Claude for tab grouping.",
+      "acceptanceCriteria": [
+        "Options page has input fields: API Key (password type), API Endpoint URL (default: https://api.anthropic.com), Model (default: claude-sonnet-4-20250514)",
+        "Save button stores settings to chrome.storage.sync",
+        "On page load, existing settings are populated from chrome.storage.sync",
+        "Show success/error feedback after save",
+        "Basic validation: API key is required, endpoint must be a valid URL",
+        "Clean, minimal CSS styling",
+        "No JavaScript errors in console"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "This is the first-run setup. Without an API key, grouping falls back to offline domain-based mode."
+    },
+    {
+      "id": "US-003",
+      "title": "AI client module for Claude API",
+      "description": "As a developer, I need a reusable AI client module so the grouper and other features can call Claude API.",
+      "acceptanceCriteria": [
+        "lib/ai.js exports a sendMessage(systemPrompt, userMessage) function",
+        "Reads API key, endpoint, and model from chrome.storage.sync",
+        "Makes POST request to {endpoint}/v1/messages with correct headers (x-api-key, anthropic-version, content-type)",
+        "Returns parsed response content text",
+        "10-second timeout via AbortController; throws descriptive error on timeout",
+        "Throws descriptive error if API key is not configured",
+        "Throws descriptive error if response is not OK (includes status code)",
+        "No JavaScript errors in console"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "Use fetch API. The endpoint default is https://api.anthropic.com. Model default is claude-sonnet-4-20250514. anthropic-version header should be 2023-06-01."
+    },
+    {
+      "id": "US-004",
+      "title": "Tab metadata collection module",
+      "description": "As a developer, I need a module to collect all open tab metadata so it can be sent to the AI for grouping.",
+      "acceptanceCriteria": [
+        "lib/tabs.js exports a getAllTabs() function",
+        "Uses chrome.tabs.query({}) to get all tabs across all windows",
+        "Returns array of objects: {index (0-based position), tabId (Chrome tab ID), title, url, domain, favIconUrl, pinned, windowId}",
+        "Pinned tabs are included in the result but marked with pinned: true",
+        "Domain is extracted from URL (hostname only, e.g., 'github.com')",
+        "Handles edge cases: chrome:// URLs, empty titles, data: URLs",
+        "No JavaScript errors in console"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": "The 0-based index is a position index assigned by us (not chrome tab ID). This is what gets sent to the AI. We map back to tabId after AI response."
+    },
+    {
+      "id": "US-005",
+      "title": "AI-powered tab grouping logic",
+      "description": "As a user, I want the AI to analyze my tabs and create meaningful Chrome Tab Groups so my tabs are organized by topic.",
+      "acceptanceCriteria": [
+        "lib/grouper.js exports a groupTabsWithAI(tabs) function",
+        "Constructs grouping prompt with tab list as JSON (index, title, url, pinned flag)",
+        "Prompt instructs AI to: group by semantic topic, return JSON with groups (name, color, tab indices), skip pinned tabs, max 8 groups, for <8 tabs use ceil(tabCount/2) groups",
+        "Sends prompt via lib/ai.js sendMessage()",
+        "Parses AI JSON response to extract group assignments",
+        "After AI response, re-queries chrome.tabs.query() to handle tabs that closed during the call",
+        "Applies groups via chrome.tabs.group() and chrome.tabGroups.update() with name and color",
+        "Skips tab indices whose tabs no longer exist; assigns new tabs opened during call to 'Misc' group",
+        "Returns summary object: {groups: [{name, color, tabCount}], totalGrouped, skipped}",
+        "No JavaScript errors in console"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": "Valid Chrome Tab Group colors: grey, blue, red, yellow, green, pink, purple, cyan, orange. AI prompt should specify these exact values. If AI returns invalid JSON, throw an error (fallback handled by caller)."
+    },
+    {
+      "id": "US-006",
+      "title": "Offline fallback grouping by domain",
+      "description": "As a user, I want tabs grouped by domain when AI is unavailable so I still get some organization without an API key.",
+      "acceptanceCriteria": [
+        "lib/grouper.js exports a groupTabsByDomain(tabs) function",
+        "Groups tabs by eTLD+1 domain (e.g., all github.com tabs together, all stackoverflow.com together)",
+        "Assigns colors from a predefined rotation (blue, green, cyan, orange, purple, pink, red, yellow)",
+        "Domains with only 1 tab go into a 'Misc' group (grey)",
+        "Skips pinned tabs",
+        "Applies groups via same chrome.tabs.group() + chrome.tabGroups.update() API",
+        "lib/grouper.js exports a main groupTabs() function that tries AI first, falls back to domain grouping on any error",
+        "No JavaScript errors in console"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": "The main groupTabs() function is the public API. It calls groupTabsWithAI() first, catches any error (no API key, timeout, parse failure), then calls groupTabsByDomain() as fallback."
+    },
+    {
+      "id": "US-007",
+      "title": "Service worker event wiring",
+      "description": "As a developer, I need the service worker to handle messages from the side panel and coordinate module interactions.",
+      "acceptanceCriteria": [
+        "service-worker.js imports and uses modules from lib/",
+        "Handles chrome.runtime.onMessage for action 'groupNow': calls groupTabs() and returns result",
+        "Handles chrome.runtime.onMessage for action 'getTabStats': returns current tab count and group count",
+        "Sets chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }) on install",
+        "Handles errors gracefully and returns error messages to caller",
+        "No JavaScript errors in service worker console"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": "Use importScripts() or static import for ES modules (need type:module in manifest). Prefer ES modules if supported."
+    },
+    {
+      "id": "US-008",
+      "title": "Side panel layout and Group Now button",
+      "description": "As a user, I want a side panel with a 'Group Now' button so I can trigger AI tab grouping with one click.",
+      "acceptanceCriteria": [
+        "sidepanel.html has a header 'Tab Brain' with current tab count",
+        "A prominent 'Group Now' button that sends 'groupNow' message to service worker",
+        "Loading spinner/state shown while grouping is in progress, button disabled during loading",
+        "On success: shows summary (number of groups created, total tabs grouped)",
+        "On error: shows error message with fallback suggestion",
+        "Clean, minimal CSS: dark sidebar theme, good contrast, readable typography",
+        "Responsive within side panel width constraints",
+        "No JavaScript errors in console"
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": "Side panel is typically 300-400px wide. Design for this constraint. Use CSS custom properties for theming."
+    },
+    {
+      "id": "US-009",
+      "title": "Side panel displays current tab groups",
+      "description": "As a user, I want to see my current tab groups in the side panel so I can understand how my tabs are organized.",
+      "acceptanceCriteria": [
+        "Side panel shows a 'Current Groups' section listing all Chrome Tab Groups",
+        "Each group shows: color indicator (matching Chrome group color), group name, tab count",
+        "Groups are expandable/collapsible to show individual tab titles under each group",
+        "Clicking a tab title activates that tab (chrome.tabs.update with active:true and window.focus)",
+        "Ungrouped tabs shown under an 'Ungrouped' section",
+        "Group list refreshes after 'Group Now' completes",
+        "No JavaScript errors in console"
+      ],
+      "priority": 9,
+      "passes": false,
+      "notes": "Use chrome.tabGroups.query() to get groups and chrome.tabs.query({groupId}) to get tabs in each group. Handle the case where user has no groups yet."
+    },
+    {
+      "id": "US-010",
+      "title": "IndexedDB setup and tab activity tracker",
+      "description": "As a developer, I need an IndexedDB-backed activity tracker so we can record tab usage for knowledge base and stale detection.",
+      "acceptanceCriteria": [
+        "lib/knowledge.js creates/opens IndexedDB database 'TabBrainDB' with object store 'entries'",
+        "Schema per entry: {url, title, domain, favIconUrl, firstSeen, lastSeen, totalFocusTime, category, archived}",
+        "Indexes on: url (unique), domain, lastSeen, archived",
+        "Exports functions: saveEntry(entry), getEntry(url), updateEntry(url, updates), getAllEntries(), searchEntries(query), pruneOldEntries(maxAgeDays)",
+        "lib/tracker.js listens to chrome.tabs.onActivated to track focus events",
+        "On tab focus: upsert entry with updated lastSeen and accumulated totalFocusTime",
+        "Auto-prune entries older than 90 days on startup",
+        "Service worker imports and initializes tracker on install/activate",
+        "No JavaScript errors in console"
+      ],
+      "priority": 10,
+      "passes": false,
+      "notes": "totalFocusTime tracks cumulative seconds the tab was focused. On onActivated, record timestamp; on next onActivated, calculate duration and add to previous tab's totalFocusTime. IndexedDB writes must be async and non-blocking."
+    },
+    {
+      "id": "US-011",
+      "title": "Stale tab detection and close recommendations",
+      "description": "As a user, I want the extension to recommend closing stale tabs so I can reduce clutter without losing information.",
+      "acceptanceCriteria": [
+        "Stale tab detection: tabs not focused in 3+ days (based on tracker data in IndexedDB)",
+        "Side panel shows 'Stale Tabs' section with count of stale tabs",
+        "Each stale tab listed with title, domain, and days since last focused",
+        "Each stale tab has an individual 'Archive & Close' button",
+        "'Archive & Close All' button at the top of the stale section",
+        "Archive action: saves/updates entry in knowledge base with archived:true, then closes tab via chrome.tabs.remove()",
+        "Stale list refreshes after archiving",
+        "No JavaScript errors in console"
+      ],
+      "priority": 11,
+      "passes": false,
+      "notes": "Compare tab's lastSeen in IndexedDB with Date.now(). If no IndexedDB entry exists for a tab, treat it as non-stale (we haven't tracked it long enough). Show empty state message when no stale tabs found."
+    },
+    {
+      "id": "US-012",
+      "title": "Knowledge base search UI",
+      "description": "As a user, I want to search my browsing history in the side panel so I can find pages I visited before without reopening tabs.",
+      "acceptanceCriteria": [
+        "Side panel shows 'Knowledge Base' section with statistics: tabs tracked today, this week",
+        "Search input with placeholder 'Search knowledge...'",
+        "Full-text search across titles, URLs, and domains in IndexedDB",
+        "Search results show: title, domain, last seen date, total focus time, archived badge if applicable",
+        "Clicking a search result opens the URL in a new tab",
+        "Results limited to 20 items with most recent first",
+        "Empty state when no results match",
+        "No JavaScript errors in console"
+      ],
+      "priority": 12,
+      "passes": false,
+      "notes": "Search implementation: iterate IndexedDB entries and filter by query substring match on title+url+domain. For v1 this is fine up to a few thousand entries. Debounce search input (300ms)."
+    }
+  ]
+}
