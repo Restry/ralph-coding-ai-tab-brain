@@ -2,11 +2,18 @@
 // Background script for managing tab grouping and knowledge tracking
 
 import { groupTabs } from './lib/grouper.js';
+import { initTracker } from './lib/tracker.js';
 
 // Open side panel when extension icon is clicked
 chrome.runtime.onInstalled.addListener(() => {
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
+  initTracker();
   console.log('Tab Brain installed');
+});
+
+// Also initialize tracker when service worker activates (e.g., after restart)
+chrome.runtime.onStartup.addListener(() => {
+  initTracker();
 });
 
 // Handle messages from side panel and other contexts
