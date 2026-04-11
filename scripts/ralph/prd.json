@@ -89,7 +89,7 @@
         "No JavaScript errors in console"
       ],
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "notes": "Valid Chrome Tab Group colors: grey, blue, red, yellow, green, pink, purple, cyan, orange. AI prompt should specify these exact values. If AI returns invalid JSON, throw an error (fallback handled by caller)."
     },
     {

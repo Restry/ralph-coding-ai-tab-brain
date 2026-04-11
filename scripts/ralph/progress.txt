@@ -16,6 +16,11 @@ Started: Sat Apr 11 23:15:55 CST 2026
 - AI client has 10s timeout via AbortController
 - lib/tabs.js exports getAllTabs() → returns array of {index, tabId, title, url, domain, favIconUrl, pinned, windowId}
 - Domain extraction: new URL(url).hostname, handles data: URLs and invalid URLs gracefully
+- lib/grouper.js exports groupTabsWithAI(tabs) → returns {groups, totalGrouped, skipped}
+- AI prompt instructs JSON-only response; parseAIResponse() strips markdown fences and validates
+- chrome.tabs.group({tabIds}) returns a groupId, then chrome.tabGroups.update(groupId, {title, color})
+- After AI call, re-query chrome.tabs.query({}) to catch tabs closed/opened during the request
+- Unassigned non-pinned tabs go to a 'Misc' group (grey color)
 
 ## 2026-04-11 23:17 - US-001
 - Created project scaffold with Manifest V3
@@ -67,4 +72,22 @@ Started: Sat Apr 11 23:15:55 CST 2026
   - index is a 0-based position assigned by us (via .map index), not Chrome's tab.index
   - Use new URL(url).hostname for domain extraction; data: URLs return '' (no hostname)
   - chrome.tabs.query({}) returns all tabs across all windows
+---
+
+## 2026-04-11 - US-005
+- Implemented AI-powered tab grouping logic in lib/grouper.js
+- Files changed: lib/grouper.js
+- Exports groupTabsWithAI(tabs) function
+- Constructs prompt with tab metadata (index, title, url, pinned), sends via sendMessage()
+- Parses AI JSON response with validation and markdown fence stripping
+- Re-queries tabs after AI call to handle closed/opened tabs during the request
+- Applies groups via chrome.tabs.group() + chrome.tabGroups.update()
+- Unassigned non-pinned tabs go to 'Misc' group (grey)
+- Returns summary: {groups: [{name, color, tabCount}], totalGrouped, skipped}
+- **Learnings for future iterations:**
+  - AI can return markdown-fenced JSON (```json...```), must strip fences before parsing
+  - chrome.tabs.group({tabIds: [...]}) creates a group and returns the groupId
+  - chrome.tabGroups.update(groupId, {title, color}) sets the visual properties
+  - Always validate AI color values against the VALID_COLORS list, default to 'grey'
+  - Re-querying tabs after AI call is essential since tabs can close during the 10s timeout
 ---
