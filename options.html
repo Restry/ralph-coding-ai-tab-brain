@@ -7,7 +7,30 @@
   <link rel="stylesheet" href="options.css">
 </head>
 <body>
-  <h1>Tab Brain Options</h1>
+  <div class="container">
+    <h1>Tab Brain Options</h1>
+    <form id="options-form">
+      <div class="field">
+        <label for="api-key">API Key <span class="required">*</span></label>
+        <input type="password" id="api-key" placeholder="sk-ant-..." required>
+        <p class="hint">Your Anthropic API key. Required for AI-powered grouping.</p>
+      </div>
+      <div class="field">
+        <label for="api-endpoint">API Endpoint URL</label>
+        <input type="url" id="api-endpoint" placeholder="https://api.anthropic.com">
+        <p class="hint">Default: https://api.anthropic.com</p>
+      </div>
+      <div class="field">
+        <label for="model">Model</label>
+        <input type="text" id="model" placeholder="claude-sonnet-4-20250514">
+        <p class="hint">Default: claude-sonnet-4-20250514</p>
+      </div>
+      <div class="actions">
+        <button type="submit" id="save-btn">Save</button>
+      </div>
+      <div id="status" class="status" hidden></div>
+    </form>
+  </div>
   <script src="options.js"></script>
 </body>
 </html>
