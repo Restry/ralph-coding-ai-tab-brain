@@ -195,7 +195,7 @@
         "No JavaScript errors in console"
       ],
       "priority": 11,
-      "passes": false,
+      "passes": true,
       "notes": "Compare tab's lastSeen in IndexedDB with Date.now(). If no IndexedDB entry exists for a tab, treat it as non-stale (we haven't tracked it long enough). Show empty state message when no stale tabs found."
     },
     {

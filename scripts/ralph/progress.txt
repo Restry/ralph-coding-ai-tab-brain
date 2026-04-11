@@ -38,6 +38,10 @@ Started: Sat Apr 11 23:15:55 CST 2026
 - chrome.runtime.sendMessage returns a Promise in MV3, can be awaited directly
 - Side panel status messages use CSS class toggling: loading/success/error
 - Side panel communicates with service worker via { action: 'actionName' } message shape
+- Stale tab detection: compare tab's lastSeen in IndexedDB with Date.now(), threshold is 3 days
+- Tabs without IndexedDB entries are treated as non-stale (not tracked long enough)
+- service-worker.js handles getStaleTabs, archiveTab, archiveAllStaleTabs message actions
+- Archive action: update/save entry with archived:true in IndexedDB, then chrome.tabs.remove(tabId)
 
 ## 2026-04-11 23:17 - US-001
 - Created project scaffold with Manifest V3
@@ -188,4 +192,20 @@ Started: Sat Apr 11 23:15:55 CST 2026
   - Focus time tracking: store currentFocus = {tabId, timestamp}, compute duration on next activation, add to totalFocusTime
   - Empty catch blocks (catch {}) are valid in plain JS for ignoring expected errors (e.g., tab closed during lookup)
   - IndexedDB transactions: use 'readwrite' for put/delete, 'readonly' for get/getAll
+---
+
+## 2026-04-11 - US-011
+- Implemented stale tab detection and close recommendations
+- Stale threshold: tabs not focused in 3+ days (based on lastSeen in IndexedDB)
+- Side panel "Stale Tabs" section with count badge, individual and bulk archive buttons
+- Archive action: saves/updates IndexedDB entry with archived:true, then closes tab
+- Empty state shown when no stale tabs found
+- Stale list refreshes after archiving and after Group Now completes
+- Files changed: service-worker.js, sidepanel.html, sidepanel.js, sidepanel.css
+- **Learnings for future iterations:**
+  - Side panel can't import ES modules (no type=module), so stale tab logic uses message passing to service worker
+  - Service worker imports knowledge.js functions (getEntry, updateEntry, saveEntry) to handle stale tab operations
+  - New URL(url).hostname works for domain extraction even in service worker context
+  - Sort stale tabs by daysSinceLastFocused descending so most stale appear first
+  - Inline style display:none/'' is simplest for conditional button visibility
 ---
