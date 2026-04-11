@@ -20,6 +20,9 @@ Started: Sat Apr 11 23:15:55 CST 2026
 - AI prompt instructs JSON-only response; parseAIResponse() strips markdown fences and validates
 - chrome.tabs.group({tabIds}) returns a groupId, then chrome.tabGroups.update(groupId, {title, color})
 - After AI call, re-query chrome.tabs.query({}) to catch tabs closed/opened during the request
+- chrome.runtime.onMessage.addListener must return true for async responses (keeps message channel open)
+- chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }) goes in onInstalled listener
+- chrome.tabGroups.query({}) returns all existing tab groups
 - Unassigned non-pinned tabs go to a 'Misc' group (grey color)
 - lib/grouper.js exports groupTabsByDomain(tabs) for offline domain-based grouping
 - lib/grouper.js exports groupTabs() as the main public API (AI first, domain fallback)
@@ -107,4 +110,19 @@ Started: Sat Apr 11 23:15:55 CST 2026
   - Domain grouping uses console.warn (not console.error) for fallback notification
   - getAllTabs is now imported in grouper.js (needed for groupTabs() to get fresh tab data)
   - eTLD+1 approximation works for common cases; a full PSL library would be needed for edge cases
+---
+
+## 2026-04-11 - US-007
+- Implemented service worker event wiring in service-worker.js
+- Files changed: service-worker.js
+- Imports groupTabs() from lib/grouper.js via ES module import
+- Handles 'groupNow' action: calls groupTabs() and returns result
+- Handles 'getTabStats' action: returns tab count and group count via chrome.tabs.query + chrome.tabGroups.query
+- Sets chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }) in onInstalled
+- Error handling: catches errors in each handler and returns { error: message } to caller
+- **Learnings for future iterations:**
+  - chrome.runtime.onMessage.addListener callback must `return true` to keep the message channel open for async sendResponse calls
+  - chrome.tabGroups.query({}) returns all existing tab groups across all windows
+  - Error responses use { error: string } shape — side panel should check for this field
+  - The `sender` parameter in onMessage is positional; needed even if unused to access sendResponse
 ---

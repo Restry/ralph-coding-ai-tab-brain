@@ -123,7 +123,7 @@
         "No JavaScript errors in service worker console"
       ],
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "notes": "Use importScripts() or static import for ES modules (need type:module in manifest). Prefer ES modules if supported."
     },
     {
