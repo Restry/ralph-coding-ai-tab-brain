@@ -4,6 +4,8 @@
 import { groupTabs } from './lib/grouper.js';
 import { initTracker } from './lib/tracker.js';
 import { getEntry, updateEntry, saveEntry, getAllEntries, searchEntries } from './lib/knowledge.js';
+import { sendMessage } from './lib/ai.js';
+import { getAllTabs } from './lib/tabs.js';
 
 // Open side panel when extension icon is clicked
 chrome.runtime.onInstalled.addListener(() => {
@@ -65,6 +67,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.action === 'archiveAllStaleTabs') {
     handleArchiveAllStaleTabs().then(sendResponse).catch(err => {
+      sendResponse({ error: err.message });
+    });
+    return true;
+  }
+
+  if (message.action === 'recommendCloseTabs') {
+    handleRecommendCloseTabs().then(sendResponse).catch(err => {
       sendResponse({ error: err.message });
     });
     return true;
@@ -230,6 +239,86 @@ async function handleArchiveAllStaleTabs() {
     return { success: true, archivedCount: archived };
   } catch (err) {
     console.warn('archiveAllStaleTabs failed:', err.message);
+    return { error: err.message };
+  }
+}
+
+/**
+ * Handle 'recommendCloseTabs' action: use AI to analyze all tabs and recommend which to close.
+ */
+async function handleRecommendCloseTabs() {
+  try {
+    const tabs = await getAllTabs();
+    const nonPinnedTabs = tabs.filter(t => !t.pinned);
+
+    if (nonPinnedTabs.length === 0) {
+      return { recommendations: [] };
+    }
+
+    const tabListForAI = nonPinnedTabs.map(t => ({
+      index: t.index,
+      title: t.title,
+      url: t.url,
+      domain: t.domain
+    }));
+
+    const systemPrompt = `You are a browser tab advisor. The user has many open tabs and wants your help deciding which ones to close. Analyze the tab list and recommend tabs that are likely no longer needed.
+
+Recommend closing tabs that are:
+- Duplicate or near-duplicate content (same topic from different sources)
+- Generic/temporary pages (search results, login pages, error pages, blank tabs)
+- Tabs that seem tangential or unrelated to the user's main work clusters
+- Old documentation that's likely been read already
+
+Do NOT recommend closing:
+- Tabs that seem like active work (GitHub PRs, Jira, active docs)
+- Unique reference material the user may need
+- Pinned tabs (already filtered out)
+
+For each recommended tab, provide a short reason (under 10 words) explaining why.
+
+Respond as JSON only:
+{
+  "recommendations": [
+    {"index": 0, "reason": "Duplicate React docs"},
+    {"index": 5, "reason": "Google search results page"}
+  ]
+}
+
+If all tabs look useful, return: {"recommendations": []}`;
+
+    const userMessage = `Here are my ${nonPinnedTabs.length} open tabs:\n${JSON.stringify(tabListForAI, null, 2)}`;
+
+    const responseText = await sendMessage(systemPrompt, userMessage);
+
+    // Parse AI response
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      return { recommendations: [], note: 'AI returned no recommendations.' };
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    const aiRecs = parsed.recommendations || [];
+
+    // Map AI indices back to actual tab data
+    const recommendations = [];
+    for (const rec of aiRecs) {
+      const tab = nonPinnedTabs.find(t => t.index === rec.index);
+      if (tab) {
+        recommendations.push({
+          tabId: tab.tabId,
+          title: tab.title,
+          url: tab.url,
+          domain: tab.domain,
+          favIconUrl: tab.favIconUrl,
+          reason: rec.reason || ''
+        });
+      }
+    }
+
+    return { recommendations };
+  } catch (err) {
+    console.warn('recommendCloseTabs failed:', err.message);
     return { error: err.message };
   }
 }

@@ -233,6 +233,30 @@ body {
   margin-bottom: 0;
 }
 
+.btn-recommend {
+  width: 100%;
+  padding: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  margin-bottom: 10px;
+}
+
+.btn-recommend:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+
+.btn-recommend:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .stale-count-badge {
   font-size: 11px;
   background: var(--error);

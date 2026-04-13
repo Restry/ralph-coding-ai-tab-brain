@@ -7,6 +7,7 @@ const groupsListEl = document.getElementById('groupsList');
 const staleListEl = document.getElementById('staleList');
 const staleCountEl = document.getElementById('staleCount');
 const archiveAllBtn = document.getElementById('archiveAllBtn');
+const recommendBtn = document.getElementById('recommendBtn');
 const kbStatsEl = document.getElementById('kbStats');
 const kbSearchInput = document.getElementById('kbSearchInput');
 const kbResultsEl = document.getElementById('kbResults');
@@ -75,7 +76,6 @@ async function handleGroupNow() {
 
     await refreshTabCount();
     await refreshGroups();
-    await refreshStaleTabs();
   } catch (err) {
     showStatus(`Error: ${err.message}`, 'error');
   } finally {
@@ -198,6 +198,7 @@ async function activateTab(tabId, windowId) {
 // Event listeners
 groupNowBtn.addEventListener('click', handleGroupNow);
 archiveAllBtn.addEventListener('click', handleArchiveAll);
+recommendBtn.addEventListener('click', handleRecommend);
 
 /** Debounce timer for search input. */
 let searchDebounceTimer = null;
@@ -312,39 +313,46 @@ async function refreshKBStats() {
   }
 }
 
-/** Fetch and render stale tabs. */
-async function refreshStaleTabs() {
+/** Handle Recommend button click: ask AI which tabs to close. */
+async function handleRecommend() {
+  recommendBtn.disabled = true;
+  recommendBtn.textContent = 'Analyzing...';
+  staleListEl.innerHTML = '<p class="empty-state">AI is analyzing your tabs...</p>';
+
   try {
-    const result = await chrome.runtime.sendMessage({ action: 'getStaleTabs' });
+    const result = await chrome.runtime.sendMessage({ action: 'recommendCloseTabs' });
+
     if (result && result.error) {
-      staleListEl.innerHTML = '<p class="empty-state">Unable to load stale tabs.</p>';
+      staleListEl.innerHTML = `<p class="empty-state">Error: ${result.error}</p>`;
       return;
     }
 
-    const staleTabs = (result && result.staleTabs) || [];
+    const recommendations = (result && result.recommendations) || [];
     staleListEl.innerHTML = '';
 
-    if (staleTabs.length === 0) {
+    if (recommendations.length === 0) {
       staleCountEl.textContent = '';
       archiveAllBtn.style.display = 'none';
-      staleListEl.innerHTML = '<p class="empty-state">No stale tabs found. All tabs are active!</p>';
+      staleListEl.innerHTML = '<p class="empty-state">All tabs look useful. Nothing to close!</p>';
       return;
     }
 
-    staleCountEl.textContent = staleTabs.length;
+    staleCountEl.textContent = recommendations.length;
     archiveAllBtn.style.display = '';
 
-    for (const tab of staleTabs) {
-      staleListEl.appendChild(renderStaleTab(tab));
+    for (const rec of recommendations) {
+      staleListEl.appendChild(renderRecommendation(rec));
     }
   } catch (err) {
-    console.warn('Failed to refresh stale tabs:', err.message);
-    staleListEl.innerHTML = '<p class="empty-state">Unable to load stale tabs.</p>';
+    staleListEl.innerHTML = `<p class="empty-state">Failed: ${err.message}</p>`;
+  } finally {
+    recommendBtn.disabled = false;
+    recommendBtn.textContent = 'Recommend Tabs to Close';
   }
 }
 
-/** Render a single stale tab item. */
-function renderStaleTab(tab) {
+/** Render a single recommended tab. */
+function renderRecommendation(rec) {
   const itemEl = document.createElement('div');
   itemEl.className = 'stale-item';
 
@@ -353,12 +361,12 @@ function renderStaleTab(tab) {
 
   const titleEl = document.createElement('div');
   titleEl.className = 'stale-title';
-  titleEl.textContent = tab.title;
-  titleEl.title = tab.url;
+  titleEl.textContent = rec.title;
+  titleEl.title = rec.url;
 
   const metaEl = document.createElement('div');
   metaEl.className = 'stale-meta';
-  metaEl.textContent = `${tab.domain} \u00B7 ${tab.daysSinceLastFocused} day${tab.daysSinceLastFocused !== 1 ? 's' : ''} ago`;
+  metaEl.textContent = rec.reason || rec.domain;
 
   infoEl.appendChild(titleEl);
   infoEl.appendChild(metaEl);
@@ -372,16 +380,22 @@ function renderStaleTab(tab) {
     try {
       await chrome.runtime.sendMessage({
         action: 'archiveTab',
-        tabId: tab.tabId,
-        url: tab.url,
-        title: tab.title,
-        domain: tab.domain,
-        favIconUrl: tab.favIconUrl
+        tabId: rec.tabId,
+        url: rec.url,
+        title: rec.title,
+        domain: rec.domain,
+        favIconUrl: rec.favIconUrl || ''
       });
-      await refreshStaleTabs();
+      itemEl.remove();
+      // Update count
+      const remaining = staleListEl.querySelectorAll('.stale-item').length;
+      staleCountEl.textContent = remaining || '';
+      if (remaining === 0) {
+        archiveAllBtn.style.display = 'none';
+        staleListEl.innerHTML = '<p class="empty-state">All recommended tabs closed!</p>';
+      }
       await refreshTabCount();
     } catch (err) {
-      console.warn('Failed to archive tab:', err.message);
       archiveBtn.disabled = false;
       archiveBtn.textContent = 'Archive & Close';
     }
@@ -397,11 +411,12 @@ async function handleArchiveAll() {
   archiveAllBtn.disabled = true;
   archiveAllBtn.textContent = 'Closing...';
   try {
-    await chrome.runtime.sendMessage({ action: 'archiveAllStaleTabs' });
-    await refreshStaleTabs();
-    await refreshTabCount();
+    const items = staleListEl.querySelectorAll('.stale-item .btn-archive');
+    for (const btn of items) {
+      btn.click();
+    }
   } catch (err) {
-    console.warn('Failed to archive all stale tabs:', err.message);
+    console.warn('Failed to archive all:', err.message);
   } finally {
     archiveAllBtn.disabled = false;
     archiveAllBtn.textContent = 'Archive & Close All';
@@ -411,5 +426,4 @@ async function handleArchiveAll() {
 // Initialize on load
 refreshTabCount();
 refreshGroups();
-refreshStaleTabs();
 refreshKBStats();
